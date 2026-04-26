@@ -1,6 +1,6 @@
 import Product from "../models/Product.js";
 import Category from "../models/Category.js";
-import User from "../models/User.js";
+import User from "../models/user.js";
 
 export const getProducts = async (req, res) => {
   try {
