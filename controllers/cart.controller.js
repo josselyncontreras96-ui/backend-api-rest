@@ -5,7 +5,7 @@ export const addToCart = async (req, res) => {
   try {
     const { product: productId, quantity = 1 } = req.body;
     const { id: userId } = req.user;
-
+    
     if (!productId) {
       return res.status(422).json({ error: "El product id es obligatorio" });
     }
