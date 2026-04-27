@@ -59,7 +59,7 @@ export const createProduct = async (req, res) => {
     };
 
     // console.log(data);
-
+     res.status(500).json({ error: "Internal server error" });
     const product = new Product(data);
     await product.save();
     
