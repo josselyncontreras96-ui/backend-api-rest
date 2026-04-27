@@ -62,6 +62,10 @@ export const createProduct = async (req, res) => {
 
     const product = new Product(data);
     await product.save();
+    
+    const productWithCategory = await Product.findById(product.id).populate("category",
+
+    );
 
     res.status(201).json(product);
   } catch (error) {
