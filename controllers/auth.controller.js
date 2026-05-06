@@ -1,127 +1,126 @@
-import User from "../models/User.js";
-
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-const createToken = (user) => {
-  const token = jwt.sign(
-    { id: user.id, email: user.email },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN,
-    },
-  );
+import User from "../models/User.js";
 
-  return token;
+const createToken = (user) => {
+  return jwt.sign({ id: user.id, email: user.email }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN,
+  });
 };
 
-export const profile = async (req, res) => {
+export const register = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
+    const { email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
-    res.json({
-      message: "Perfil del usuario",
-      user: user,
+    if (!normalizedEmail || !password) {
+      return res.status(400).json({
+        error: "Email and password required",
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({
+        error: "Invalid email",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: "Password too short",
+      });
+    }
+
+    const existingUser = await User.findOne({ email: normalizedEmail });
+
+    if (existingUser) {
+      return res.status(400).json({
+        error: "User already exists",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      email: normalizedEmail,
+      password: hashedPassword,
+    });
+
+    res.status(201).json({
+      id: user._id,
+      email: user.email,
     });
   } catch (error) {
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({
+      error: "Error creating user",
+    });
   }
 };
 
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password required" });
+    if (!normalizedEmail || !password) {
+      return res.status(400).json({
+        error: "Email and password required",
+      });
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ error: "Invalid email" });
+    if (!emailRegex.test(normalizedEmail)) {
+      return res.status(400).json({
+        error: "Invalid email",
+      });
     }
 
-    if (password.length < 5) {
-      return res
-        .status(400)
-        .json({ error: "Contraseña muy corta, mínimo 6 caracteres" });
-    }
-
-    const user = await User.findOne({ email });
-
-    // console.log(user);
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
-      return res.status(400).json({ error: "Invalid credentials" });
+      return res.status(400).json({
+        error: "Invalid credentials",
+      });
     }
-
-    // console.log(password, user.password);
 
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
-      return res.status(400).json({ error: "Invalid Credentials" });
+      return res.status(400).json({
+        error: "Invalid credentials",
+      });
     }
 
     const token = createToken(user);
 
-    res.json({ token });
+    res.json({
+      token,
+    });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({
+      error: "Error logging in",
+    });
   }
 };
 
-export const register = async (req, res) => {
+export const profile = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const user = await User.findById(req.user.id).select("-password");
 
-    //   console.log(!email.includes("@"));
-
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ error: "Correo y contraseña son requeridos." });
+    if (!user) {
+      return res.status(404).json({
+        error: "User not found",
+      });
     }
 
-    //   if (!email.includes("@")) {
-    //     return res.status(400).json({ error: "Invalid email" });
-    //   }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-    //   console.log(!emailRegex.test(email));
-
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ error: "Invalid email" });
-    }
-
-    if (password.length < 5) {
-      return res
-        .status(400)
-        .json({ error: "Contraseña muy corta, mínimo 6 caracteres" });
-    }
-
-    const existingUser = await User.findOne({ email });
-
-    if (existingUser) {
-      return res.status(400).json({ error: "Usuario duplicado" });
-    }
-
-    const hash = await bcrypt.hash(password, 10);
-
-    const user = await User.create({
-      email,
-      password: hash,
-    });
-
-    res.status(201).json({
-      id: user.id,
-      email: user.email,
-    });
+    res.json(user);
   } catch (error) {
-    // console.log(error);
-    res.status(500).json({ error: "Internal Server Error" });
+    res.status(500).json({
+      error: "Error getting profile",
+    });
   }
 };
